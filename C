@@ -1,0 +1,93 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser")
+
+-- Remotes
+local Remote = ReplicatedStorage
+    :WaitForChild("Shared")
+    :WaitForChild("Framework")
+    :WaitForChild("Network")
+    :WaitForChild("Remote")
+
+local RemoteEvent = Remote:WaitForChild("RemoteEvent")
+local RemoteFunction = Remote:WaitForChild("RemoteFunction")
+
+-- Pick Petals
+local PickPetals = workspace:WaitForChild("Spring"):WaitForChild("PickPetals")
+
+-- State
+local bubbleRunning = false
+local farmRunning   = false
+local lunarRunning  = false
+
+local function notify(msg)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title    = "Farm Hub",
+        Text     = msg,
+        Duration = 2
+    })
+end
+
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+
+    -- 1: Blow Bubble
+    if input.KeyCode == Enum.KeyCode.One then
+        bubbleRunning = not bubbleRunning
+        notify("Blow Bubble: " .. (bubbleRunning and "ON" or "OFF"))
+        if bubbleRunning then
+            task.spawn(function()
+                while bubbleRunning do
+                    RemoteEvent:FireServer("BlowBubble")
+                    task.wait(0.1)
+                end
+            end)
+        end
+
+    -- 2: Farm
+    elseif input.KeyCode == Enum.KeyCode.Two then
+        farmRunning = not farmRunning
+        notify("Farm: " .. (farmRunning and "ON" or "OFF"))
+        if farmRunning then
+            task.spawn(function()
+                while farmRunning do
+                    RemoteFunction:InvokeServer("SpringWheelSpin")
+                    RemoteEvent:FireServer("ClaimSpringWheelSpinQueue")
+                    RemoteEvent:FireServer("HatchEgg", "Spring Egg", 2)
+                    for _, Petal in ipairs(PickPetals:GetChildren()) do
+                        RemoteEvent:FireServer("PickPetal", Petal)
+                        task.wait(0.1)
+                    end
+                    task.wait(1)
+                end
+            end)
+        end
+
+    -- 3: Lunar Wheel
+    elseif input.KeyCode == Enum.KeyCode.Three then
+        lunarRunning = not lunarRunning
+        notify("Lunar Wheel: " .. (lunarRunning and "ON" or "OFF"))
+        if lunarRunning then
+            task.spawn(function()
+                while lunarRunning do
+                    RemoteEvent:FireServer("ClaimLunarYearFreeWheelSpin")
+                    task.wait(1)
+                    RemoteFunction:InvokeServer("LunarWheelSpin")
+                    task.wait(1)
+                    RemoteEvent:FireServer("ClaimLunarYearWheelSpinQueue")
+                    task.wait(8)
+                end
+            end)
+        end
+    end
+end)
+
+-- Anti AFK
+game:GetService("Players").LocalPlayer.Idled:Connect(function()
+    VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+    task.wait(1)
+    VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+end)
+
+print("Loaded!")
+print("1 = Blow Bubble | 2 = Farm | 3 = Lunar Wheel")
