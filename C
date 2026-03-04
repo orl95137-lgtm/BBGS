@@ -81,7 +81,7 @@ local function applyDrawings()
     dPanelOutline.Transparency = 1
     dPanelOutline.Visible      = true
 
-    dPanelTitle.Text         = "== Farm Hub =="
+    dPanelTitle.Text         = "== Farm =="
     dPanelTitle.Color        = white
     dPanelTitle.Size         = 18
     dPanelTitle.Center       = true
@@ -244,7 +244,7 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- Touch (mobile)
+-- Touch
 local GuiService = game:GetService("GuiService")
 local inset = GuiService:GetGuiInset()
 
@@ -262,7 +262,7 @@ UserInputService.TouchMoved:Connect(function(touch)
     handleMove(correctPos(touch.Position))
 end)
 
--- Render loop (redraws every frame so it can never disappear)
+-- Render loop
 RunService.RenderStepped:Connect(function()
     if dragging then
         handleMove(UserInputService:GetMouseLocation())
