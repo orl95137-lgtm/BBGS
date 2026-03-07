@@ -18,20 +18,22 @@ local RemoteFunction = Remote:WaitForChild("RemoteFunction")
 local PickPetals = workspace:WaitForChild("Spring"):WaitForChild("PickPetals")
 
 -- State
-local bubbleRunning = false
-local farmRunning   = false
-local lunarRunning  = false
+local bubbleRunning     = false
+local farmRunning       = false
+local lunarRunning      = false
+local springEggRunning  = false
+local forestEggRunning  = false
 
 local colorOn  = Color3.fromRGB(255, 80, 80)
 local colorOff = Color3.fromRGB(50, 180, 255)
 local white    = Color3.fromRGB(255, 255, 255)
 local dark     = Color3.fromRGB(20, 20, 20)
 
--- Panel
+-- Panel (5 buttons)
 local panelX  = 20
 local panelY  = 20
 local panelW  = 220
-local panelH  = 200
+local panelH  = 310
 local btnH    = 45
 local btnPad  = 10
 local headerH = 35
@@ -41,13 +43,13 @@ local dragging    = false
 local dragOffsetX = 0
 local dragOffsetY = 0
 
--- Drawing objects (created once)
+-- Drawing objects
 local dPanelBg      = Drawing.new("Square")
 local dPanelOutline = Drawing.new("Square")
 local dPanelTitle   = Drawing.new("Text")
 
 local dBtns = {}
-for i = 1, 3 do
+for i = 1, 5 do
     dBtns[i] = {
         bg      = Drawing.new("Square"),
         outline = Drawing.new("Square"),
@@ -60,9 +62,11 @@ local function getButtonY(i)
 end
 
 local btnData = {
-    { label = "[1] Blow Bubble", getState = function() return bubbleRunning end },
-    { label = "[2] Farm",        getState = function() return farmRunning   end },
-    { label = "[3] Lunar Wheel", getState = function() return lunarRunning  end },
+    { label = "[1] Blow Bubble", getState = function() return bubbleRunning     end },
+    { label = "[2] Farm",        getState = function() return farmRunning       end },
+    { label = "[3] Lunar Wheel", getState = function() return lunarRunning      end },
+    { label = "[4] Spring Egg",  getState = function() return springEggRunning  end },
+    { label = "[5] Forest Egg",  getState = function() return forestEggRunning  end },
 }
 
 local function applyDrawings()
@@ -140,13 +144,13 @@ end
 -- Notify
 local function notify(msg)
     game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title    = "Farm Hub",
+        Title    = "Farm",
         Text     = msg,
         Duration = 2
     })
 end
 
--- Toggle functions (shared between UI and keybinds)
+-- Toggle functions
 local function toggleBubble()
     bubbleRunning = not bubbleRunning
     notify("Blow Bubble: " .. (bubbleRunning and "ON" or "OFF"))
@@ -168,7 +172,6 @@ local function toggleFarm()
             while farmRunning do
                 RemoteFunction:InvokeServer("SpringWheelSpin")
                 RemoteEvent:FireServer("ClaimSpringWheelSpinQueue")
-                RemoteEvent:FireServer("HatchEgg", "Spring Egg", 2)
                 for _, Petal in ipairs(PickPetals:GetChildren()) do
                     RemoteEvent:FireServer("PickPetal", Petal)
                     task.wait(0.1)
@@ -196,6 +199,39 @@ local function toggleLunar()
     end
 end
 
+-- Spring Egg
+local function toggleSpringEgg()
+    springEggRunning = not springEggRunning
+    notify("Spring Egg: " .. (springEggRunning and "ON" or "OFF"))
+    if springEggRunning then
+        task.spawn(function()
+            while springEggRunning do
+                RemoteEvent:FireServer("HatchEgg", "Spring Egg", 2)
+                task.wait(0.5)
+            end
+        end)
+    end
+end
+
+-- Forest Egg
+local function toggleForestEgg()
+    forestEggRunning = not forestEggRunning
+    notify("Forest Egg: " .. (forestEggRunning and "ON" or "OFF"))
+    if forestEggRunning then
+        task.spawn(function()
+            while forestEggRunning do
+                local args = {
+                    [1] = "HatchEgg",
+                    [2] = "Forest Egg",
+                    [3] = 1,
+                }
+                RemoteEvent:FireServer(unpack(args))
+                task.wait(1)
+            end
+        end)
+    end
+end
+
 -- UI press handler
 local function handlePress(pos)
     if isHitHeader(pos) then
@@ -211,6 +247,10 @@ local function handlePress(pos)
         toggleFarm()
     elseif isHit(3, pos) then
         toggleLunar()
+    elseif isHit(4, pos) then
+        toggleSpringEgg()
+    elseif isHit(5, pos) then
+        toggleForestEgg()
     end
 end
 
@@ -225,7 +265,7 @@ local function handleMove(pos)
     end
 end
 
--- Keybinds (1, 2, 3)
+-- Keybinds (1-5)
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
 
@@ -233,9 +273,11 @@ UserInputService.InputBegan:Connect(function(input, gpe)
         handlePress(UserInputService:GetMouseLocation())
     end
 
-    if input.KeyCode == Enum.KeyCode.One   then toggleBubble() end
-    if input.KeyCode == Enum.KeyCode.Two   then toggleFarm()   end
-    if input.KeyCode == Enum.KeyCode.Three then toggleLunar()  end
+    if input.KeyCode == Enum.KeyCode.One   then toggleBubble()      end
+    if input.KeyCode == Enum.KeyCode.Two   then toggleFarm()        end
+    if input.KeyCode == Enum.KeyCode.Three then toggleLunar()       end
+    if input.KeyCode == Enum.KeyCode.Four  then toggleSpringEgg()   end
+    if input.KeyCode == Enum.KeyCode.Five  then toggleForestEgg()   end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
@@ -244,7 +286,7 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- Touch
+-- Touch support
 local GuiService = game:GetService("GuiService")
 local inset = GuiService:GetGuiInset()
 
@@ -278,4 +320,4 @@ game:GetService("Players").LocalPlayer.Idled:Connect(function()
 end)
 
 print("Farm Loaded")
-print("1 = Blow Bubble | 2 = Farm | 3 = Lunar Wheel")
+print("1 = Blow Bubble | 2 = Farm | 3 = Lunar Wheel | 4 = Spring Egg | 5 = Forest Egg") 
