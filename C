@@ -207,7 +207,7 @@ local function toggleSpringEgg()
     if springEggRunning then
         task.spawn(function()
             while springEggRunning do
-                RemoteEvent:FireServer("HatchEgg", "Spring Egg", 2)
+                RemoteEvent:FireServer("HatchEgg", "Spring Egg", 6)
                 task.wait(0.5)
             end
         end)
@@ -220,7 +220,7 @@ local function toggleForestEgg()
     if forestEggRunning then
         task.spawn(function()
             while forestEggRunning do
-                RemoteEvent:FireServer("HatchEgg", "Forest Egg", 2)
+                RemoteEvent:FireServer("HatchEgg", "Forest Egg", 6)
                 task.wait(1)
             end
         end)
