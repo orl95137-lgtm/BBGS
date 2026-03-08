@@ -1,51 +1,56 @@
-local scriptContent = [==[
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService  = game:GetService("UserInputService")
-local RunService        = game:GetService("RunService")
-local VirtualUser       = game:GetService("VirtualUser")
-local GuiService        = game:GetService("GuiService")
-local Players           = game:GetService("Players")
-local TeleportService   = game:GetService("TeleportService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
+local CoreGui = game:GetService("CoreGui")
 
+-- Remotes
 local Remote = ReplicatedStorage
     :WaitForChild("Shared")
     :WaitForChild("Framework")
     :WaitForChild("Network")
     :WaitForChild("Remote")
 
-local RemoteEvent    = Remote:WaitForChild("RemoteEvent")
+local RemoteEvent = Remote:WaitForChild("RemoteEvent")
 local RemoteFunction = Remote:WaitForChild("RemoteFunction")
-local PickPetals     = workspace:WaitForChild("Spring"):WaitForChild("PickPetals")
 
-local bubbleRunning    = false
-local farmRunning      = false
-local lunarRunning     = false
-local springEggRunning = false
-local forestEggRunning = false
+-- Pick Petals
+local PickPetals = workspace:WaitForChild("Spring"):WaitForChild("PickPetals")
+
+-- State
+local bubbleRunning     = false
+local farmRunning       = false
+local lunarRunning      = false
+local springEggRunning  = false
+local forestEggRunning  = false
+local adminWheelRunning = false  -- NEW
 
 local colorOn  = Color3.fromRGB(255, 80, 80)
 local colorOff = Color3.fromRGB(50, 180, 255)
 local white    = Color3.fromRGB(255, 255, 255)
 local dark     = Color3.fromRGB(20, 20, 20)
 
+-- Panel (6 buttons now)
 local panelX  = 20
 local panelY  = 20
 local panelW  = 220
-local panelH  = 310
+local panelH  = 365  -- increased from 310 to fit 6th button
 local btnH    = 45
 local btnPad  = 10
 local headerH = 35
 
+-- Dragging
 local dragging    = false
 local dragOffsetX = 0
 local dragOffsetY = 0
 
+-- Drawing objects
 local dPanelBg      = Drawing.new("Square")
 local dPanelOutline = Drawing.new("Square")
 local dPanelTitle   = Drawing.new("Text")
 
 local dBtns = {}
-for i = 1, 5 do
+for i = 1, 6 do  -- increased to 6
     dBtns[i] = {
         bg      = Drawing.new("Square"),
         outline = Drawing.new("Square"),
@@ -58,11 +63,12 @@ local function getButtonY(i)
 end
 
 local btnData = {
-    { label = "[1] Blow Bubble", getState = function() return bubbleRunning     end },
-    { label = "[2] Farm",        getState = function() return farmRunning       end },
-    { label = "[3] Lunar Wheel", getState = function() return lunarRunning      end },
-    { label = "[4] Spring Egg",  getState = function() return springEggRunning  end },
-    { label = "[5] Forest Egg",  getState = function() return forestEggRunning  end },
+    { label = "[1] Blow Bubble",  getState = function() return bubbleRunning     end },
+    { label = "[2] Farm",         getState = function() return farmRunning       end },
+    { label = "[3] Lunar Wheel",  getState = function() return lunarRunning      end },
+    { label = "[4] Spring Egg",   getState = function() return springEggRunning  end },
+    { label = "[5] Forest Egg",   getState = function() return forestEggRunning  end },
+    { label = "[6] Admin Wheel",  getState = function() return adminWheelRunning end },  -- NEW
 }
 
 local function applyDrawings()
@@ -123,6 +129,7 @@ local function applyDrawings()
     end
 end
 
+-- Hit detection
 local function isHit(index, pos)
     local bx = panelX + 10
     local by = getButtonY(index)
@@ -136,14 +143,16 @@ local function isHitHeader(pos)
        and pos.Y >= panelY and pos.Y <= panelY + headerH
 end
 
+-- Notify
 local function notify(msg)
     game:GetService("StarterGui"):SetCore("SendNotification", {
         Title    = "Farm",
         Text     = msg,
-        Duration = 2,
+        Duration = 2
     })
 end
 
+-- Toggle functions
 local function toggleBubble()
     bubbleRunning = not bubbleRunning
     notify("Blow Bubble: " .. (bubbleRunning and "ON" or "OFF"))
@@ -211,18 +220,32 @@ local function toggleForestEgg()
     if forestEggRunning then
         task.spawn(function()
             while forestEggRunning do
-                local args = {
-                    [1] = "HatchEgg",
-                    [2] = "Forest Egg",
-                    [3] = 2,
-                }
-                RemoteEvent:FireServer(unpack(args))
+                RemoteEvent:FireServer("HatchEgg", "Forest Egg", 1)
                 task.wait(1)
             end
         end)
     end
 end
 
+-- Admin Wheel (NEW)
+local function toggleAdminWheel()
+    adminWheelRunning = not adminWheelRunning
+    notify("Admin Wheel: " .. (adminWheelRunning and "ON" or "OFF"))
+    if adminWheelRunning then
+        task.spawn(function()
+            while adminWheelRunning do
+                RemoteEvent:FireServer("ClaimAdminFreeWheelSpin")
+                task.wait(1)
+                RemoteFunction:InvokeServer("AdminWheelSpin")
+                task.wait(1)
+                RemoteEvent:FireServer("ClaimAdminWheelSpinQueue")
+                task.wait(5)
+            end
+        end)
+    end
+end
+
+-- UI press handler
 local function handlePress(pos)
     if isHitHeader(pos) then
         dragging    = true
@@ -230,11 +253,19 @@ local function handlePress(pos)
         dragOffsetY = pos.Y - panelY
         return
     end
-    if     isHit(1, pos) then toggleBubble()
-    elseif isHit(2, pos) then toggleFarm()
-    elseif isHit(3, pos) then toggleLunar()
-    elseif isHit(4, pos) then toggleSpringEgg()
-    elseif isHit(5, pos) then toggleForestEgg()
+
+    if isHit(1, pos) then
+        toggleBubble()
+    elseif isHit(2, pos) then
+        toggleFarm()
+    elseif isHit(3, pos) then
+        toggleLunar()
+    elseif isHit(4, pos) then
+        toggleSpringEgg()
+    elseif isHit(5, pos) then
+        toggleForestEgg()
+    elseif isHit(6, pos) then  -- NEW
+        toggleAdminWheel()
     end
 end
 
@@ -249,16 +280,20 @@ local function handleMove(pos)
     end
 end
 
+-- Keybinds (1-6)
 UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
+
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         handlePress(UserInputService:GetMouseLocation())
     end
-    if input.KeyCode == Enum.KeyCode.One   then toggleBubble()    end
-    if input.KeyCode == Enum.KeyCode.Two   then toggleFarm()      end
-    if input.KeyCode == Enum.KeyCode.Three then toggleLunar()     end
-    if input.KeyCode == Enum.KeyCode.Four  then toggleSpringEgg() end
-    if input.KeyCode == Enum.KeyCode.Five  then toggleForestEgg() end
+
+    if input.KeyCode == Enum.KeyCode.One   then toggleBubble()      end
+    if input.KeyCode == Enum.KeyCode.Two   then toggleFarm()        end
+    if input.KeyCode == Enum.KeyCode.Three then toggleLunar()       end
+    if input.KeyCode == Enum.KeyCode.Four  then toggleSpringEgg()   end
+    if input.KeyCode == Enum.KeyCode.Five  then toggleForestEgg()   end
+    if input.KeyCode == Enum.KeyCode.Six   then toggleAdminWheel()  end  -- NEW
 end)
 
 UserInputService.InputEnded:Connect(function(input)
@@ -267,7 +302,10 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
+-- Touch support
+local GuiService = game:GetService("GuiService")
 local inset = GuiService:GetGuiInset()
+
 local function correctPos(rawPos)
     return Vector2.new(rawPos.X, rawPos.Y + inset.Y)
 end
@@ -282,6 +320,7 @@ UserInputService.TouchMoved:Connect(function(touch)
     handleMove(correctPos(touch.Position))
 end)
 
+-- Render loop
 RunService.RenderStepped:Connect(function()
     if dragging then
         handleMove(UserInputService:GetMouseLocation())
@@ -289,33 +328,12 @@ RunService.RenderStepped:Connect(function()
     applyDrawings()
 end)
 
-Players.LocalPlayer.Idled:Connect(function()
+-- Anti AFK
+game:GetService("Players").LocalPlayer.Idled:Connect(function()
     VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
     task.wait(1)
     VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
 end)
 
-GuiService.ErrorMessageChanged:Connect(function(errorMessage)
-    if errorMessage and errorMessage ~= "" then
-        print("Error detected: " .. errorMessage)
-        task.wait(1)
-        TeleportService:Teleport(game.PlaceId, Players.LocalPlayer)
-    end
-end)
-
 print("Farm Loaded")
-print("1=Bubble | 2=Farm | 3=Lunar | 4=Spring Egg | 5=Forest Egg")
-]==]
-
--- Queue on teleport so the loadstring re-runs after every rejoin
-pcall(function()
-    local queueScript = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/orl95137-lgtm/BBGS/main/C"))()]]
-    if syn and syn.queue_on_teleport then
-        syn.queue_on_teleport(queueScript)
-    elseif queue_on_teleport then
-        queue_on_teleport(queueScript)
-    end
-end)
-
--- Run the script right now
-loadstring(scriptContent)()
+print("1 = Blow Bubble | 2 = Farm | 3 = Lunar Wheel | 4 = Spring Egg | 5 = Forest Egg | 6 = Admin Wheel")
