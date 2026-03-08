@@ -23,7 +23,7 @@ local farmRunning       = false
 local lunarRunning      = false
 local springEggRunning  = false
 local forestEggRunning  = false
-local adminWheelRunning = false  -- NEW
+local adminWheelRunning = false
 
 local colorOn  = Color3.fromRGB(255, 80, 80)
 local colorOff = Color3.fromRGB(50, 180, 255)
@@ -34,7 +34,7 @@ local dark     = Color3.fromRGB(20, 20, 20)
 local panelX  = 20
 local panelY  = 20
 local panelW  = 220
-local panelH  = 365  -- increased from 310 to fit 6th button
+local panelH  = 365
 local btnH    = 45
 local btnPad  = 10
 local headerH = 35
@@ -220,7 +220,7 @@ local function toggleForestEgg()
     if forestEggRunning then
         task.spawn(function()
             while forestEggRunning do
-                RemoteEvent:FireServer("HatchEgg", "Forest Egg", 1)
+                RemoteEvent:FireServer("HatchEgg", "Forest Egg", 2)
                 task.wait(1)
             end
         end)
